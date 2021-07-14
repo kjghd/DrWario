@@ -127,6 +127,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>true</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -143,11 +146,15 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>true</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="ActivePill.cpp" />
+    <ClCompile Include="PillDot.cpp" />
     <ClCompile Include="SetPill.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
@@ -158,6 +165,7 @@
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="ActivePill.h" />
+    <ClInclude Include="PillDot.h" />
     <ClInclude Include="SafeRelease.h" />
     <ClInclude Include="SetPill.h" />
   </ItemGroup>

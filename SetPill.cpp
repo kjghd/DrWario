@@ -1,13 +1,8 @@
 #include "SetPill.h"
 
-SetPill::SetPill()
+SetPill::SetPill(ID2D1Bitmap* pBitmap, int color_A, int color_B, int loc_A, int loc_B)
 	:
-	m_pBitmap(NULL),
-	m_bmpTileA(D2D1::RectF()),
-	m_bmpTileB(D2D1::RectF()),
-	m_bmpLocA(0),
-	m_bmpLocB(0),
-	m_colorA(),
-	m_colorB()
+	sideA(new PillDot(pBitmap,  7.f, loc_A, color_A)),
+	sideB(new PillDot(pBitmap, 14.f, loc_B, color_B))
 {
 }
