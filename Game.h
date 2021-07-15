@@ -1,6 +1,7 @@
 #pragma once
 #include "Graphics.h"
 #include "Input.h"
+#include "PillDot.h"
 #include "ActivePill.h"
 #include "SetPill.h"
 #include "DIPs.h"
@@ -12,6 +13,7 @@
 // game objects and variables
 ActivePill* o_ActivePill;
 std::vector <SetPill*> o_SetPill;
+std::vector <PillDot*> o_PillDot;
 ID2D1Bitmap* pBmp_bg;
 ID2D1Bitmap* pBmp_bottle;
 ID2D1Bitmap* pBmp_grid;
@@ -42,192 +44,125 @@ bool SortPillSquare(PillSquare i, PillSquare j)
 }
 std::vector <int> matches;
 
+std::vector <PillDot*> pd; // pointer lets o_SetPill to be directly modified
+bool SortPillDots(PillDot* i, PillDot* j)
+{
+	return i->m_bmpLoc < j->m_bmpLoc;
+}
+
 // Game functions
 
 void DestroyMatches()
 {
-	for (size_t i = 0; i < matches.size(); i++)
-	{
-		o_SetPill.erase(o_SetPill.begin() + ps[matches[i]].m_pillIndex);
-	}
+	//int x;
+	//int side;
+	//if (side == 0)
+	//{
+	//	o_PillDot.push_back(o_SetPill[x]->sideA);
+	//}
+	//else
+	//{
+	//	o_PillDot.push_back(o_SetPill[x]->sideB);
+	//}
 }
 
 void CheckRow()
 {
-	// sort
-	ps.clear();
+	// store
+	pd.clear();
 	for (size_t i = 0; i < o_SetPill.size(); i++)
 	{
-		ps.push_back(PillSquare(i, 0, o_SetPill[i]->sideA->m_bmpLoc, o_SetPill[i]->sideA->m_color));
-		ps.push_back(PillSquare(i, 1, o_SetPill[i]->sideB->m_bmpLoc, o_SetPill[i]->sideB->m_color));
+		pd.push_back(o_SetPill[i]->sideA);
+		pd.push_back(o_SetPill[i]->sideB);
 	}
-	std::sort(ps.begin(), ps.end(), SortPillSquare);
-
-	// check for matches
-	matches.clear();
-	int current;
-	int count;
-	bool inMatches;
-	OutputDebugString(L"Match debug\n");
-	// X
-	for (size_t i = 0; i < ps.size(); i++) // enumerate through every pill side
+	std::sort(pd.begin(), pd.end(), SortPillDots);
+	
+	// debug total pill dots
+	OutputDebugString(L"Order:\n");
+	for (size_t i = 0; i < pd.size(); i++)
 	{
-		// check if pill side is in matches already
-		inMatches = false;
-		for (size_t ii = 0; ii < matches.size(); ii++)
-		{
-			if (i == matches[ii])
-			{
-				OutputDebugString(std::to_wstring(ps[i].m_pillLoc).c_str());
-				OutputDebugString(L" already in matches\n");
-				inMatches = true;
-			}
-		}
-		// if not add pill side to matches
-		if (!inMatches)
-		{
-			current = i;
-			matches.push_back(current);
-			count = 1;
-			OutputDebugString(L"	Starting row with ");
-			OutputDebugString(std::to_wstring(ps[current].m_pillLoc).c_str());
-			OutputDebugString(L"\n");
-			for (size_t ii = 0; ii < ps.size(); ii++) // check current against all other pill sides
-			{
-				// if right of current is a match, add it to matches
-				if (ps[current].m_pillLoc + 1 == ps[ii].m_pillLoc &&
-					ps[current].m_pillColor == ps[ii].m_pillColor)
-				{
-					OutputDebugString(L"match in square: ");
-					OutputDebugString(std::to_wstring(ps[current].m_pillLoc).c_str());
-					OutputDebugString(L" & ");
-					OutputDebugString(std::to_wstring(ps[ii].m_pillLoc).c_str());
-					OutputDebugString(L"\n");
-					current = ii;		   // update current
-					matches.push_back(ii); // add match
-					ii = 0;				   // reset loop for updated current
-					count++;			   // increment match count
-				}
-			}
-			// if the total matches just added is < 4, remove them from matches
-			if (count < 4)
-			{
-				OutputDebugString(L"Count: ");
-				OutputDebugString(std::to_wstring(count).c_str());
-				OutputDebugString(L"\n");
-				for (int ii = 0; ii < count; ii++)
-				{
-					OutputDebugString(L"Discarded ");
-					OutputDebugString(std::to_wstring(ps[matches.back()].m_pillLoc).c_str());
-					OutputDebugString(L"\n");
-					matches.pop_back();
-				}
-			}
-			else
-			{
-				OutputDebugString(L"Count: ");
-				OutputDebugString(std::to_wstring(count).c_str());
-				OutputDebugString(L"\n");
-			}
-		}
-		OutputDebugString(L"\n");
-	}
-	// Y
-	for (size_t i = 0; i < ps.size(); i++) // enumerate through every pill side
-	{
-		// check if pill side is in matches already
-		inMatches = false;
-		for (size_t ii = 0; ii < matches.size(); ii++)
-		{
-			if (i == matches[ii])
-			{
-				OutputDebugString(std::to_wstring(ps[i].m_pillLoc).c_str());
-				OutputDebugString(L" already in matches\n");
-				inMatches = true;
-			}
-		}
-		// if not add pill side to matches
-		if (!inMatches)
-		{
-			current = i;
-			matches.push_back(current);
-			count = 1;
-			OutputDebugString(L"	Starting row with ");
-			OutputDebugString(std::to_wstring(ps[current].m_pillLoc).c_str());
-			OutputDebugString(L"\n");
-			for (size_t ii = 0; ii < ps.size(); ii++) // check current against all other pill sides
-			{
-				// if right of current is a match, add it to matches
-				if (ps[current].m_pillLoc + 8 == ps[ii].m_pillLoc &&
-					ps[current].m_pillColor == ps[ii].m_pillColor)
-				{
-					OutputDebugString(L"match in square: ");
-					OutputDebugString(std::to_wstring(ps[current].m_pillLoc).c_str());
-					OutputDebugString(L" & ");
-					OutputDebugString(std::to_wstring(ps[ii].m_pillLoc).c_str());
-					OutputDebugString(L"\n");
-					current = ii;		   // update current
-					matches.push_back(ii); // add match
-					ii = 0;				   // reset loop for updated current
-					count++;			   // increment match count
-				}
-			}
-			// if the total matches just added is < 4, remove them from matches
-			if (count < 4)
-			{
-				OutputDebugString(L"Count: ");
-				OutputDebugString(std::to_wstring(count).c_str());
-				OutputDebugString(L"\n");
-				for (int ii = 0; ii < count; ii++)
-				{
-					OutputDebugString(L"Discarded ");
-					OutputDebugString(std::to_wstring(ps[matches.back()].m_pillLoc).c_str());
-					OutputDebugString(L"\n");
-					matches.pop_back();
-				}
-			}
-			else
-			{
-				OutputDebugString(L"Count: ");
-				OutputDebugString(std::to_wstring(count).c_str());
-				OutputDebugString(L"\n");
-			}
-		}
-		OutputDebugString(L"\n");
-	}
-
-	// debug matches
-	OutputDebugString(L"Match locations\n");
-	for (size_t i = 0; i < matches.size(); i++)
-	{
-		OutputDebugString(std::to_wstring(ps[matches[i]].m_pillLoc).c_str());
+		OutputDebugString(std::to_wstring(pd[i]->m_bmpLoc).c_str());
 		OutputDebugString(L", ");
 	}
 	OutputDebugString(L"\n");
-	OutputDebugString(L"\n");
 
-	// set bitmap
-	for (size_t i = 0; i < matches.size(); i++)
+	// check
+	int current;
+	int count;
+	matches.clear();
+	for (size_t i = 0; i < pd.size(); i++)
 	{
-		if (ps[matches[i]].m_pillSide == 0) // if side 0
+		// X
+		matches.push_back(i);
+		current = i;
+		count = 1;
+		for (size_t ii = 0; ii < pd.size(); ii++)
 		{
-			o_SetPill[ps[matches[i]].m_pillIndex]->sideA->m_bmpTile = {
-				35,
-				(float)(7 * ps[matches[i]].m_pillColor - 7),
-				42,
-				(float)(7 * ps[matches[i]].m_pillColor)
-			};
+			if (i != ii &&
+				pd[current]->m_bmpLoc + 1 == pd[ii]->m_bmpLoc &&
+				pd[current]->m_color == pd[ii]->m_color) // check to right
+			{
+				matches.push_back(ii); // store
+				current = ii; // retarget
+				ii = 0; // reset
+				count++;
+			}
 		}
-		else if (ps[matches[i]].m_pillSide == 1) // if side 1
+		if (count < 4)
 		{
-			o_SetPill[ps[matches[i]].m_pillIndex]->sideB->m_bmpTile = {
-				35,
-				(float)(7 * ps[matches[i]].m_pillColor - 7),
-				42,
-				(float)(7 * ps[matches[i]].m_pillColor)
-			};
+			for (size_t i = 0; i < count; i++)
+			{
+				matches.pop_back();
+			}
+		}
+
+		// Y
+		matches.push_back(i);
+		current = i;
+		count = 1;
+		for (size_t ii = 0; ii < pd.size(); ii++)
+		{
+			if (i != ii &&
+				pd[current]->m_bmpLoc + 8 == pd[ii]->m_bmpLoc &&
+				pd[current]->m_color == pd[ii]->m_color) // check to right
+			{
+				matches.push_back(ii); // store
+				current = ii; // retarget
+				ii = 0; // reset
+				count++;
+			}
+		}
+		if (count < 4)
+		{
+			for (size_t i = 0; i < count; i++)
+			{
+				matches.pop_back();
+			}
 		}
 	}
+
+	// remove doubles
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		for (size_t ii = 0; ii < matches.size(); ii++)
+		{
+			if (i != ii && matches[i] == matches[ii])
+			{
+				matches.erase(matches.begin() + ii);
+			}
+		}
+	}
+
+	// debug matches
+	OutputDebugString(L"Matches:\n");
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		OutputDebugString(std::to_wstring(pd[matches[i]]->m_bmpLoc).c_str());
+		OutputDebugString(L", ");
+	}
+	OutputDebugString(L"\n");
+
+	DestroyMatches();
 }
 
 
