@@ -1,5 +1,6 @@
 #pragma once
 #include <d2d1.h>
+#include "PillDot.h"
 
 enum PillColor
 {
@@ -20,19 +21,17 @@ enum PillState
 class ActivePill
 {
 public:
-	ID2D1Bitmap* m_pBitmap;
-	D2D1_RECT_F m_bmpTileA;
-	D2D1_RECT_F m_bmpTileB;
-	int m_bmpLocA;
-	int m_bmpLocB;
+	PillDot* sideA;
+	PillDot* sideB;
 	int m_rotation;
-	int m_colorA;
-	int m_colorB;
+	int m_base;
 
-	void Rotate();
+	void SetToUp();
+	void SetToDown();
+	void SetToLeft();
+	void SetToRight();
 
-	ActivePill();
+	ActivePill(ID2D1Bitmap* pBitmap, int color_A, int color_B);
 	~ActivePill();
-
 };
 

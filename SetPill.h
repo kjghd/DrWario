@@ -1,18 +1,14 @@
 #pragma once
 #include <d2d1.h>
+#include "PillDot.h"
 
 class SetPill
 {
 public:
-	ID2D1Bitmap* m_pBitmap;
-	D2D1_RECT_F m_bmpTileA;
-	D2D1_RECT_F m_bmpTileB;
-	int m_bmpLocA;
-	int m_bmpLocB;
-	int m_colorA;
-	int m_colorB;
+	PillDot* sideA;
+	PillDot* sideB;
 
-	SetPill();
+	SetPill(ID2D1Bitmap* pBitmap, int color_A, int color_B, int loc_A, int loc_B);
 
 };
 

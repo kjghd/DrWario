@@ -30,6 +30,9 @@
     <ClCompile Include="SetPill.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PillDot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Globals.h">
@@ -54,6 +57,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SetPill.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PillDot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
