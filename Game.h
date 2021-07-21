@@ -1,19 +1,24 @@
 #pragma once
 #include "Graphics.h"
-#include "Input.h"
 #include "PillDot.h"
-#include "ActivePill.h"
-#include "SetPill.h"
+#include "PillPlayer.h"
 #include "DIPs.h"
 #include "SafeRelease.h"
 #include <sstream>
 #include <vector>
 #include <algorithm>
 
+enum PillColor
+{
+	PILL_COLOR_NULL,
+	PILL_COLOR_BLU,
+	PILL_COLOR_RED,
+	PILL_COLOR_YEL
+};
+
 // game objects and variables
-ActivePill* o_ActivePill;
-std::vector <SetPill*> o_SetPill;
-std::vector <PillDot*> o_PillDot;
+std::vector <PillDot*> vPillDot;
+PillPlayer* oPillPlayer;
 ID2D1Bitmap* pBmp_bg;
 ID2D1Bitmap* pBmp_bottle;
 ID2D1Bitmap* pBmp_grid;
@@ -21,67 +26,61 @@ ID2D1Bitmap* pBmp_gridItem;
 float time_ms;
 D2D1_RECT_F grid[104];
 
-struct PillSquare
-{
-	int m_pillIndex;
-	int m_pillSide;
-	int m_pillLoc;
-	int m_pillColor;
-
-	PillSquare(int pillIndex, int pillSide, int pillLoc, int pillColor)
-		:
-		m_pillIndex(pillIndex),
-		m_pillSide(pillSide),
-		m_pillLoc(pillLoc),
-		m_pillColor(pillColor)
-	{
-	};
-};
-std::vector <PillSquare> ps;
-bool SortPillSquare(PillSquare i, PillSquare j)
-{
-	return i.m_pillLoc < j.m_pillLoc;
-}
-std::vector <int> matches;
-
-std::vector <PillDot*> pd; // pointer lets o_SetPill to be directly modified
+std::vector <int> matches; // matching pill indexes
 bool SortPillDots(PillDot* i, PillDot* j)
 {
 	return i->m_bmpLoc < j->m_bmpLoc;
 }
-
-// Game functions
-
-void DestroyMatches()
+bool SortMatches(int i, int j)
 {
-	//int x;
-	//int side;
-	//if (side == 0)
-	//{
-	//	o_PillDot.push_back(o_SetPill[x]->sideA);
-	//}
-	//else
-	//{
-	//	o_PillDot.push_back(o_SetPill[x]->sideB);
-	//}
+	return i > j;
 }
 
-void CheckRow()
+// Game functions
+void Serve()
 {
-	// store
-	pd.clear();
-	for (size_t i = 0; i < o_SetPill.size(); i++)
+	oPillPlayer = new PillPlayer(pBmp_gridItem, PILL_COLOR_BLU, PILL_COLOR_RED);
+
+	OutputDebugString(L"Serving\n");
+}
+bool Aim()
+{
+	oPillPlayer->HandleInput(vPillDot); // when function definition is in cpp, sets input->m_button[3] to (false, false)
+	if (time_ms > 1.f) // input->m_button[3] reverts back to (true, true).
 	{
-		pd.push_back(o_SetPill[i]->sideA);
-		pd.push_back(o_SetPill[i]->sideB);
+		time_ms = 0;
+		if (!oPillPlayer->IncrementY(vPillDot))
+		{
+			return false;
+		}
+		return true;
 	}
-	std::sort(pd.begin(), pd.end(), SortPillDots);
-	
+}
+void Land()
+{
+	// add to list
+	vPillDot.push_back(oPillPlayer->m_pillDotA);
+	vPillDot.push_back(oPillPlayer->m_pillDotB);
+	// second last (A) friend = last (B)
+	vPillDot[vPillDot.size() - 2]->m_friend = vPillDot[vPillDot.size() - 1];
+	// last (B) friend = second last (A)
+	vPillDot[vPillDot.size() - 1]->m_friend = vPillDot[vPillDot.size() - 2];
+
+	delete oPillPlayer;
+	oPillPlayer = nullptr;
+
+	OutputDebugString(L"Landed\n");
+}
+bool CheckForMatches()
+{
+	// sort
+	std::sort(vPillDot.begin(), vPillDot.end(), SortPillDots);
+
 	// debug total pill dots
 	OutputDebugString(L"Order:\n");
-	for (size_t i = 0; i < pd.size(); i++)
+	for (size_t i = 0; i < vPillDot.size(); i++)
 	{
-		OutputDebugString(std::to_wstring(pd[i]->m_bmpLoc).c_str());
+		OutputDebugString(std::to_wstring(vPillDot[i]->m_bmpLoc).c_str());
 		OutputDebugString(L", ");
 	}
 	OutputDebugString(L"\n");
@@ -90,17 +89,17 @@ void CheckRow()
 	int current;
 	int count;
 	matches.clear();
-	for (size_t i = 0; i < pd.size(); i++)
+	for (size_t i = 0; i < vPillDot.size(); i++)
 	{
 		// X
 		matches.push_back(i);
 		current = i;
 		count = 1;
-		for (size_t ii = 0; ii < pd.size(); ii++)
+		for (size_t ii = 0; ii < vPillDot.size(); ii++)
 		{
 			if (i != ii &&
-				pd[current]->m_bmpLoc + 1 == pd[ii]->m_bmpLoc &&
-				pd[current]->m_color == pd[ii]->m_color) // check to right
+				vPillDot[current]->m_bmpLoc + 1 == vPillDot[ii]->m_bmpLoc &&
+				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
 			{
 				matches.push_back(ii); // store
 				current = ii; // retarget
@@ -120,11 +119,11 @@ void CheckRow()
 		matches.push_back(i);
 		current = i;
 		count = 1;
-		for (size_t ii = 0; ii < pd.size(); ii++)
+		for (size_t ii = 0; ii < vPillDot.size(); ii++)
 		{
 			if (i != ii &&
-				pd[current]->m_bmpLoc + 8 == pd[ii]->m_bmpLoc &&
-				pd[current]->m_color == pd[ii]->m_color) // check to right
+				vPillDot[current]->m_bmpLoc + 8 == vPillDot[ii]->m_bmpLoc &&
+				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
 			{
 				matches.push_back(ii); // store
 				current = ii; // retarget
@@ -149,211 +148,74 @@ void CheckRow()
 			if (i != ii && matches[i] == matches[ii])
 			{
 				matches.erase(matches.begin() + ii);
+				i = 0;
+				ii = 0;
 			}
 		}
 	}
+
+	std::sort(matches.begin(), matches.end(), SortMatches); // sort matches big to small for destroying list without reshuffling idexes
 
 	// debug matches
 	OutputDebugString(L"Matches:\n");
 	for (size_t i = 0; i < matches.size(); i++)
 	{
-		OutputDebugString(std::to_wstring(pd[matches[i]]->m_bmpLoc).c_str());
+		OutputDebugString(std::to_wstring(matches[i]).c_str());
 		OutputDebugString(L", ");
 	}
 	OutputDebugString(L"\n");
 
-	DestroyMatches();
-}
-
-
-void Serve()
-{
-	o_ActivePill = new ActivePill(pBmp_gridItem, PILLCOLOR_BLUE, PILLCOLOR_RED);
-	OutputDebugString(L"Serving\n");
-}
-
-void Land()
-{
-	o_SetPill.resize(o_SetPill.size() + 1);
-	o_SetPill[o_SetPill.size() - 1] = new SetPill(
-		pBmp_gridItem,
-		o_ActivePill->sideA->m_color,
-		o_ActivePill->sideB->m_color,
-		o_ActivePill->sideA->m_bmpLoc,
-		o_ActivePill->sideB->m_bmpLoc
-	);
-
-	// delete active pill
-	o_ActivePill = NULL;
-	OutputDebugString(L"Landed\n");
-	CheckRow();
-	if (matches.size() > 0)
+	if (matches.empty())
 	{
-		DestroyMatches();
+		return false;
+	}
+	else
+	{
+		return true;
 	}
 }
-
-void Aim()
+void DestroyMatches()
 {
-	// idle
-	if (time_ms > 1.f)
+	for (size_t i = 0; i < matches.size(); i++)
 	{
-		time_ms = 0;
-
-		// check collision
-		for (size_t i = 0; i < o_SetPill.size(); i++)
+		if (vPillDot[matches[i]]->m_friend)
 		{
-			if (o_ActivePill->sideA->m_bmpLoc + 8 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideA->m_bmpLoc + 8 == o_SetPill[i]->sideB->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 8 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 8 == o_SetPill[i]->sideB->m_bmpLoc)
-			{
-				Land();
-				return;
-			}
+			vPillDot[matches[i]]->m_friend->m_friend = nullptr;
 		}
-		// touching ground
-		if (o_ActivePill->m_base >= 96)
-		{
-			Land();
-		}
-		// move down
-		else
-		{
-			o_ActivePill->m_base += 8;
-			o_ActivePill->sideA->m_bmpLoc += 8;
-			o_ActivePill->sideB->m_bmpLoc += 8;
-		}
+		vPillDot.erase(vPillDot.begin() + matches[i]);
 	}
-
-	// manual
-		// clockwise
-	if (input->ButtonPressed(BUTTON_E))
+}
+void Fall()
+{
+	// maybe not detecting friends when falling
+	if (!vPillDot.empty())
 	{
-		switch (o_ActivePill->m_rotation)
+		bool stillRoom{ true };
+		while (stillRoom)
 		{
-		case PILL_RIGHT:
-			o_ActivePill->SetToDown();
-			break;
-			
-		case PILL_DOWN:
-			o_ActivePill->SetToLeft();
-			break;
-
-		case PILL_LEFT:
-			o_ActivePill->SetToUp();
-			break;
-			
-		case PILL_UP:
-			o_ActivePill->SetToRight();
-			break;
-
-		default:
-			break;
-		}
-	}
-	// anti clockwise
-	if (input->ButtonPressed(BUTTON_Q))
-	{
-		switch (o_ActivePill->m_rotation)
-		{
-		case PILL_RIGHT:
-			o_ActivePill->SetToUp();
-			break;
-			
-		case PILL_UP:
-			o_ActivePill->SetToLeft();
-			break;
-			
-		case PILL_LEFT:
-			o_ActivePill->SetToDown();
-			break;
-			
-		case PILL_DOWN:
-			o_ActivePill->SetToRight();
-			break;
-			
-		default:
-			break;
-		}
-	}
-	// move left
-	if (input->ButtonPressed(BUTTON_A))
-	{
-		// if against left side return
-		for (size_t i = 0; i < 13; i++)
-		{
-			if (o_ActivePill->sideA->m_bmpLoc == i * 8 || o_ActivePill->sideB->m_bmpLoc == i * 8)
+			stillRoom = false;
+			for (size_t i = 0; i < vPillDot.size(); i++)
 			{
-				return;
+				if (vPillDot[i]->m_friend)
+				{
+					if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot) ||
+						!vPillDot[i]->m_friend->CheckDownBounds() && !vPillDot[i]->m_friend->CheckDownHit(vPillDot))
+					{
+						vPillDot[i]->MoveDown();
+						vPillDot[i]->m_friend->MoveDown();
+						stillRoom = true;
+					}
+				}
+				else
+				{
+					if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot))
+					{
+						vPillDot[i]->MoveDown();
+						stillRoom = true;
+					}
+				}
 			}
 		}
-		// if pill to left return
-		for (size_t i = 0; i < o_SetPill.size(); i++)
-		{
-			if (o_ActivePill->sideA->m_bmpLoc - 1 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideA->m_bmpLoc - 1 == o_SetPill[i]->sideB->m_bmpLoc || 
-				o_ActivePill->sideB->m_bmpLoc - 1 == o_SetPill[i]->sideA->m_bmpLoc || 
-				o_ActivePill->sideB->m_bmpLoc - 1 == o_SetPill[i]->sideB->m_bmpLoc)
-			{
-				return;
-			}
-		}
-		// else move to left
-		o_ActivePill->m_base -= 1;
-		o_ActivePill->sideA->m_bmpLoc -= 1;
-		o_ActivePill->sideB->m_bmpLoc -= 1;
-	}
-	// move right
-	if (input->ButtonPressed(BUTTON_D))
-	{
-		// if against right side return
-		for (size_t i = 0; i < 13; i++)
-		{
-			if (o_ActivePill->sideA->m_bmpLoc == i * 8 + 7 || o_ActivePill->sideB->m_bmpLoc == i * 8 + 7)
-			{
-				return;
-			}
-		}
-		// if pill to right return
-		for (size_t i = 0; i < o_SetPill.size(); i++)
-		{
-			if (o_ActivePill->sideA->m_bmpLoc + 1 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideA->m_bmpLoc + 1 == o_SetPill[i]->sideB->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 1 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 1 == o_SetPill[i]->sideB->m_bmpLoc)
-			{
-				return;
-			}
-		}
-		// else move to right
-		o_ActivePill->m_base += 1;
-		o_ActivePill->sideA->m_bmpLoc += 1;
-		o_ActivePill->sideB->m_bmpLoc += 1;
-	}
-	// move down
-	if (input->ButtonPressed(BUTTON_S))
-	{
-		// if pill underneath return
-		for (size_t i = 0; i < o_SetPill.size(); i++)
-		{
-			if (o_ActivePill->sideA->m_bmpLoc + 8 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideA->m_bmpLoc + 8 == o_SetPill[i]->sideB->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 8 == o_SetPill[i]->sideA->m_bmpLoc ||
-				o_ActivePill->sideB->m_bmpLoc + 8 == o_SetPill[i]->sideB->m_bmpLoc)
-			{
-				return;
-			}
-		}
-		// if against bottom return
-		if (o_ActivePill->sideA->m_bmpLoc >= 96 || o_ActivePill->sideB->m_bmpLoc >= 96)
-		{
-			return;
-		}
-		// else move down
-		o_ActivePill->m_base += 8;
-		o_ActivePill->sideA->m_bmpLoc += 8;
-		o_ActivePill->sideB->m_bmpLoc += 8;
 	}
 }
 
@@ -381,17 +243,33 @@ void GameInit(HWND* phWnd)
 			bottom
 		);
 	}
-	o_ActivePill = new ActivePill(pBmp_gridItem, PILLCOLOR_BLUE, PILLCOLOR_RED);
-
 	time_ms = 0;
 }
 
 void GameUpdate(float deltaTime)
 {
 	time_ms += deltaTime;
-	if (o_ActivePill)
+
+	if (oPillPlayer)
 	{
-		Aim();
+		if (!Aim())
+		{
+			Land();
+			bool possibleMatches{ true };
+			while (possibleMatches)
+			{
+				if (CheckForMatches())
+				{
+					DestroyMatches();
+					Fall();
+				}
+				else
+				{
+					possibleMatches = false;
+				}
+			}
+
+		}
 	}
 	else
 	{
@@ -405,9 +283,8 @@ void GameRender(HWND* pHwnd)
 	graphics->ClearScreen();
 
 	graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+	graphics->DrawBitmap(&pBmp_bottle, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
 
-	// bottle
-	graphics->DrawBitmap(&pBmp_bottle, D2D1::RectF(80.f, 8.f, 160.f, 160.f)); 
 	// grid debug
 	for (size_t i = 0; i < 104; i++)
 	{
@@ -416,41 +293,38 @@ void GameRender(HWND* pHwnd)
 			graphics->DrawBitmap(&pBmp_grid, grid[i]);
 		}
 	}
-	// set pills
-	for (size_t i = 0; i < o_SetPill.size(); i++)
+	// PillDots
+	if (!vPillDot.empty())
 	{
-		D2D1_RECT_F locA = {
-			grid[o_SetPill[i]->sideA->m_bmpLoc].left        ,
-			grid[o_SetPill[i]->sideA->m_bmpLoc].top         ,
-			grid[o_SetPill[i]->sideA->m_bmpLoc].right  - 1.f,
-			grid[o_SetPill[i]->sideA->m_bmpLoc].bottom - 1.f
-		};
-		D2D1_RECT_F locB = {
-			grid[o_SetPill[i]->sideB->m_bmpLoc].left        ,
-			grid[o_SetPill[i]->sideB->m_bmpLoc].top         ,
-			grid[o_SetPill[i]->sideB->m_bmpLoc].right  - 1.f,
-			grid[o_SetPill[i]->sideB->m_bmpLoc].bottom - 1.f
-		};
-		graphics->DrawBitmapTile(&pBmp_gridItem, locA, o_SetPill[i]->sideA->m_bmpTile);
-		graphics->DrawBitmapTile(&pBmp_gridItem, locB, o_SetPill[i]->sideB->m_bmpTile);
+		for (size_t i = 0; i < vPillDot.size(); i++)
+		{
+			D2D1_RECT_F rcf = {
+				grid[vPillDot[i]->m_bmpLoc].left        ,
+				grid[vPillDot[i]->m_bmpLoc].top         ,
+				grid[vPillDot[i]->m_bmpLoc].right - 1.f,
+				grid[vPillDot[i]->m_bmpLoc].bottom - 1.f
+			};
+			graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
+			graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
+		}
 	}
-	// active pill
-	if (o_ActivePill)
+	// PillPlayer
+	if (oPillPlayer)
 	{
-		D2D1_RECT_F locA = {
-			grid[o_ActivePill->sideA->m_bmpLoc].left       ,
-			grid[o_ActivePill->sideA->m_bmpLoc].top   + 1.f,
-			grid[o_ActivePill->sideA->m_bmpLoc].right - 1.f,
-			grid[o_ActivePill->sideA->m_bmpLoc].bottom
+		D2D1_RECT_F rcfA = {
+			grid[oPillPlayer->m_pillDotA->m_bmpLoc].left       ,
+			grid[oPillPlayer->m_pillDotA->m_bmpLoc].top   + 1.f,
+			grid[oPillPlayer->m_pillDotA->m_bmpLoc].right - 1.f,
+			grid[oPillPlayer->m_pillDotA->m_bmpLoc].bottom
 		};
-		D2D1_RECT_F locB = {
-			grid[o_ActivePill->sideB->m_bmpLoc].left       ,
-			grid[o_ActivePill->sideB->m_bmpLoc].top   + 1.f,
-			grid[o_ActivePill->sideB->m_bmpLoc].right - 1.f,
-			grid[o_ActivePill->sideB->m_bmpLoc].bottom
+		D2D1_RECT_F rcfB = {
+			grid[oPillPlayer->m_pillDotB->m_bmpLoc].left       ,
+			grid[oPillPlayer->m_pillDotB->m_bmpLoc].top + 1.f,
+			grid[oPillPlayer->m_pillDotB->m_bmpLoc].right - 1.f,
+			grid[oPillPlayer->m_pillDotB->m_bmpLoc].bottom
 		};
-		graphics->DrawBitmapTile(&o_ActivePill->sideA->m_pBitmap, locA, o_ActivePill->sideA->m_bmpTile);
-		graphics->DrawBitmapTile(&o_ActivePill->sideB->m_pBitmap, locB, o_ActivePill->sideB->m_bmpTile);
+		graphics->DrawBitmapTile(&oPillPlayer->m_pillDotA->m_pBitmap, rcfA, oPillPlayer->m_pillDotA->m_bmpTile);
+		graphics->DrawBitmapTile(&oPillPlayer->m_pillDotB->m_pBitmap, rcfB, oPillPlayer->m_pillDotB->m_bmpTile);
 	}
 
 	graphics->EndDraw();
