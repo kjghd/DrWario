@@ -181,6 +181,8 @@ void DestroyMatches()
 		if (vPillDot[matches[i]]->m_friend)
 		{
 			vPillDot[matches[i]]->m_friend->m_friend = nullptr;
+			vPillDot[matches[i]]->m_friend->m_bmpTile.left = 0;
+			vPillDot[matches[i]]->m_friend->m_bmpTile.right = 7.f;
 		}
 		vPillDot.erase(vPillDot.begin() + matches[i]);
 	}
