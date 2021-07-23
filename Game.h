@@ -15,6 +15,12 @@ enum PillColor
 	PILL_COLOR_RED,
 	PILL_COLOR_YEL
 };
+enum GameState
+{
+	GAME_SERVE,
+	GAME_AIM,
+	GAME_CHECK
+};
 
 // game objects and variables
 std::vector <PillDot*> vPillDot;
@@ -24,8 +30,10 @@ ID2D1Bitmap* pBmp_bottle;
 ID2D1Bitmap* pBmp_grid;
 ID2D1Bitmap* pBmp_gridItem;
 float time_ms;
+int gs;
 D2D1_RECT_F grid[104];
 
+std::vector<int> vToFall;
 std::vector <int> matches; // matching pill indexes
 bool SortPillDots(PillDot* i, PillDot* j)
 {
@@ -36,6 +44,9 @@ bool SortMatches(int i, int j)
 	return i > j;
 }
 
+
+
+
 // Game functions
 void Serve()
 {
@@ -45,15 +56,13 @@ void Serve()
 }
 bool Aim()
 {
-	oPillPlayer->HandleInput(vPillDot); // when function definition is in cpp, sets input->m_button[3] to (false, false)
-	if (time_ms > 1.f) // input->m_button[3] reverts back to (true, true).
+	if (oPillPlayer->IncrementY(vPillDot))
 	{
-		time_ms = 0;
-		if (!oPillPlayer->IncrementY(vPillDot))
-		{
-			return false;
-		}
 		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 void Land()
@@ -165,6 +174,13 @@ bool CheckForMatches()
 	}
 	OutputDebugString(L"\n");
 
+	// set match image
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		vPillDot[matches[i]]->m_bmpTile.left = 35.f;
+		vPillDot[matches[i]]->m_bmpTile.right = 42.f;
+	}
+
 	if (matches.empty())
 	{
 		return false;
@@ -186,37 +202,45 @@ void DestroyMatches()
 		}
 		vPillDot.erase(vPillDot.begin() + matches[i]);
 	}
+	matches.clear();
+}
+
+bool CanFall()
+{
+	vToFall.clear();
+	bool canFall = false;
+	if (!vPillDot.empty())
+	{
+		for (size_t i = 0; i < vPillDot.size(); i++)
+		{
+			if (vPillDot[i]->m_friend)
+			{
+				if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot) &&
+					!vPillDot[i]->m_friend->CheckDownBounds() && !vPillDot[i]->m_friend->CheckDownHit(vPillDot))
+				{
+					vToFall.push_back(i);
+					canFall = true;
+				}
+			}
+			else
+			{
+				if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot))
+				{
+					vToFall.push_back(i);
+					canFall = true;
+				}
+			}
+		}
+	}
+	return canFall;
 }
 void Fall()
 {
-	// maybe not detecting friends when falling
 	if (!vPillDot.empty())
 	{
-		bool stillRoom{ true };
-		while (stillRoom)
+		for (size_t i = 0; i < vToFall.size(); i++)
 		{
-			stillRoom = false;
-			for (size_t i = 0; i < vPillDot.size(); i++)
-			{
-				if (vPillDot[i]->m_friend)
-				{
-					if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot) ||
-						!vPillDot[i]->m_friend->CheckDownBounds() && !vPillDot[i]->m_friend->CheckDownHit(vPillDot))
-					{
-						vPillDot[i]->MoveDown();
-						vPillDot[i]->m_friend->MoveDown();
-						stillRoom = true;
-					}
-				}
-				else
-				{
-					if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot))
-					{
-						vPillDot[i]->MoveDown();
-						stillRoom = true;
-					}
-				}
-			}
+			vPillDot[vToFall[i]]->MoveDown();
 		}
 	}
 }
@@ -246,36 +270,53 @@ void GameInit(HWND* phWnd)
 		);
 	}
 	time_ms = 0;
+	gs = GAME_SERVE;
 }
 
 void GameUpdate(float deltaTime)
 {
 	time_ms += deltaTime;
+	//OutputDebugString(std::to_wstring(time_ms).c_str());
+	//OutputDebugString(L"\n");
 
-	if (oPillPlayer)
+	if (gs == GAME_SERVE && time_ms > 1.f)
 	{
-		if (!Aim())
-		{
-			Land();
-			bool possibleMatches{ true };
-			while (possibleMatches)
-			{
-				if (CheckForMatches())
-				{
-					DestroyMatches();
-					Fall();
-				}
-				else
-				{
-					possibleMatches = false;
-				}
-			}
-
-		}
-	}
-	else
-	{
+		time_ms = 0;
 		Serve();
+		gs = GAME_AIM;
+	}
+	if (gs == GAME_AIM)
+	{
+		oPillPlayer->HandleInput(vPillDot);
+		if (time_ms > 1.f)
+		{
+			time_ms = 0;
+			if (!Aim())
+			{
+				Land();
+				gs = GAME_CHECK;
+			}
+		}
+
+	}
+	if (gs == GAME_CHECK && time_ms > 0.5f)
+	{
+		time_ms = 0;
+		if (matches.empty())
+		{
+			if (CanFall())
+			{
+				Fall();
+			}
+			else if (!CheckForMatches())
+			{
+				gs = GAME_SERVE;
+			}
+		}
+		else
+		{
+			DestroyMatches();
+		}
 	}
 }
 
