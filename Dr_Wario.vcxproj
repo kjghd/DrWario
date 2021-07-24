@@ -153,9 +153,8 @@
   <ItemGroup>
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="Input.cpp" />
-    <ClCompile Include="ActivePill.cpp" />
     <ClCompile Include="PillDot.cpp" />
-    <ClCompile Include="SetPill.cpp" />
+    <ClCompile Include="PillPlayer.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -164,10 +163,9 @@
     <ClInclude Include="Globals.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Input.h" />
-    <ClInclude Include="ActivePill.h" />
     <ClInclude Include="PillDot.h" />
+    <ClInclude Include="PillPlayer.h" />
     <ClInclude Include="SafeRelease.h" />
-    <ClInclude Include="SetPill.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

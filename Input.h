@@ -35,6 +35,9 @@ public:
 	bool ButtonHeld(int button);
 	float ButtonHeldTime(int button);
 
+	bool debugSetters;
+	bool debugInput;
+	void DebugMessage(bool condition, int button, LPCWSTR message);
 };
 
 static Input* input = new Input();
