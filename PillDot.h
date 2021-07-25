@@ -10,13 +10,15 @@ public:
 	PillDot* m_friend;
 	int m_bmpLoc;
 	int m_color;
+	bool m_still;
 
 	bool CheckDownHit(std::vector <PillDot*> vRange);
 	bool CheckDownBounds();
+	bool CheckRightBounds();
 
 	void MoveDown();
 
-	PillDot(ID2D1Bitmap* pBitmap, float tileX, int loc, int color);
+	PillDot(ID2D1Bitmap* pBitmap, float tileX, int loc, int color, bool still = false);
 	~PillDot();
 };
 

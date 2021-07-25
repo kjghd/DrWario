@@ -56,5 +56,8 @@
     <ClInclude Include="PillPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TimingValues.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -71,6 +71,18 @@ bool PillPlayer::CheckDownHit(std::vector <PillDot*> vRange)
 	}
 	return false;
 }
+bool PillPlayer::CheckUpBaseHit(std::vector<PillDot*> vRange)
+{
+	for (size_t i = 0; i < vRange.size(); i++)
+	{
+		if (m_baseLocation - 8 == vRange[i]->m_bmpLoc)
+		{
+			DebugMessage(debugHit, L"PillPlayer base hit above.\n");
+			return true;
+		}
+	}
+	return false;
+}
 bool PillPlayer::CheckLeftBounds()
 {
 	for (size_t i = 0; i < 13; i++)
