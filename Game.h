@@ -4,6 +4,7 @@
 #include "PillPlayer.h"
 #include "DIPs.h"
 #include "SafeRelease.h"
+#include "TimingValues.h"
 #include <sstream>
 #include <vector>
 #include <algorithm>
@@ -31,8 +32,13 @@ enum GameState
 	GAME_PAUSE,
 	GAME_MENU
 };
-//
+
+// 
 int pauseOption;
+int menuOption;
+int menuVirus;
+int menuSpeed;
+int virusCount;
 
 // game objects and variables
 int game_state;
@@ -41,12 +47,18 @@ PillPlayer* oPillPlayer;
 ID2D1Bitmap* pBmp_bg;
 ID2D1Bitmap* pBmp_bottle;
 ID2D1Bitmap* pBmp_bottleWon;
+ID2D1Bitmap* pBmp_bottleLost;
 ID2D1Bitmap* pBmp_grid;
 ID2D1Bitmap* pBmp_gridItem;
 ID2D1Bitmap* pBmp_pause;
 ID2D1Bitmap* pBmp_pauseCircle;
-float time_ms;
-float timeElapsed_ms;
+ID2D1Bitmap* pBmp_menu;
+ID2D1Bitmap* pBmp_arrowVirus;
+ID2D1Bitmap* pBmp_arrowSpeed;
+ID2D1Bitmap* pBmp_statCard;
+ID2D1Bitmap* pBmp_numbers;
+
+float time_s;
 int play_state;
 D2D1_RECT_F grid[104];
 
@@ -62,15 +74,24 @@ bool SortMatches(int i, int j)
 }
 
 // Game functions
-
-
-void Serve()
+bool Serve()
 {
-	oPillPlayer = new PillPlayer(pBmp_gridItem, rand() % 3 + 1, rand() % 3 + 1);
+	// check nothing is in the way
+	for (size_t i = 0; i < vPillDot.size(); i++)
+	{
+		if (vPillDot[i]->m_bmpLoc == 3 ||
+			vPillDot[i]->m_bmpLoc == 4)
+		{
+			return false;
+		}
+	}
 
+	// drop a new pill
+	oPillPlayer = new PillPlayer(pBmp_gridItem, rand() % 3 + 1, rand() % 3 + 1);
 	OutputDebugString(L"Serving\n");
+	return true;
 }
-bool Aim()
+bool Drop()
 {
 	if (oPillPlayer->IncrementY(vPillDot))
 	{
@@ -98,7 +119,7 @@ void Land()
 }
 bool CheckForMatches()
 {
-	// sort
+	// sort pill dots
 	std::sort(vPillDot.begin(), vPillDot.end(), SortPillDots);
 
 	// debug total pill dots
@@ -112,82 +133,64 @@ bool CheckForMatches()
 	OutputDebugString(L"\n");
 	*/
 
-	// check
+	// check for matches
 	int current;
 	int count;
 	bool onEdge;
 	matches.clear();
 	for (size_t i = 0; i < vPillDot.size(); i++)
 	{
-		onEdge = false;
-		for (size_t ii = 0; ii < 13; ii++)
+		// X
+		matches.push_back(i);
+		current = i;
+		count = 1;
+		for (size_t ii = 0; ii < vPillDot.size(); ii++)
 		{
-			if (vPillDot[i]->m_bmpLoc == ii * 8 + 7)
+			if (i != ii &&
+				!vPillDot[current]->CheckRightBounds() &&
+				vPillDot[current]->m_bmpLoc + 1 == vPillDot[ii]->m_bmpLoc &&
+				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
 			{
-				onEdge = true;
+				matches.push_back(ii); // store
+				current = ii; // retarget
+				ii = 0; // reset
+				count++;
 			}
 		}
-		if (!onEdge)
+		if (count < 4)
 		{
-			// X
-			matches.push_back(i);
-			current = i;
-			count = 1;
-			for (size_t ii = 0; ii < vPillDot.size(); ii++)
+			for (size_t i = 0; i < count; i++)
 			{
-				if (i != ii &&
-					vPillDot[current]->m_bmpLoc + 1 == vPillDot[ii]->m_bmpLoc &&
-					vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
-				{
-					matches.push_back(ii); // store
-					current = ii; // retarget
-					ii = 0; // reset
-					count++;
-				}
-			}
-			if (count < 4)
-			{
-				for (size_t i = 0; i < count; i++)
-				{
-					matches.pop_back();
-				}
+				matches.pop_back();
 			}
 		}
 
-		onEdge = false;
-		if (i >= 96)
+		// Y
+		matches.push_back(i);
+		current = i;
+		count = 1;
+		for (size_t ii = 0; ii < vPillDot.size(); ii++)
 		{
-			onEdge = true;
-		}
-		if (!onEdge)
-		{
-			// Y
-			matches.push_back(i);
-			current = i;
-			count = 1;
-			for (size_t ii = 0; ii < vPillDot.size(); ii++)
+			if (i != ii &&
+				vPillDot[current]->m_bmpLoc + 8 == vPillDot[ii]->m_bmpLoc &&
+				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
 			{
-				if (i != ii &&
-					vPillDot[current]->m_bmpLoc + 8 == vPillDot[ii]->m_bmpLoc &&
-					vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
-				{
-					matches.push_back(ii); // store
-					current = ii; // retarget
-					ii = 0; // reset
-					count++;
-				}
+				matches.push_back(ii); // store
+				current = ii; // retarget
+				ii = 0; // reset
+				count++;
 			}
-			if (count < 4)
+		}
+		if (count < 4)
+		{
+			for (size_t i = 0; i < count; i++)
 			{
-				for (size_t i = 0; i < count; i++)
-				{
-					matches.pop_back();
-				}
+				matches.pop_back();
 			}
 		}
 	}
 
-	// remove doubles
+	// remove double matches
 	for (size_t i = 0; i < matches.size(); i++)
 	{
 		for (size_t ii = 0; ii < matches.size(); ii++)
@@ -201,7 +204,7 @@ bool CheckForMatches()
 		}
 	}
 
-	// sort matches big to small for destroying list without reshuffling idexes
+	// sort matches big to small for erasing a member without reshuffling the others
 	std::sort(matches.begin(), matches.end(), SortMatches);
 
 	// debug matches
@@ -265,6 +268,7 @@ bool CanFall()
 	{
 		for (size_t i = 0; i < vPillDot.size(); i++)
 		{
+			// if the pilldot has a friend, check below both both it and it's friend
 			if (vPillDot[i]->m_friend)
 			{
 				if (!vPillDot[i]->m_still &&
@@ -275,6 +279,7 @@ bool CanFall()
 					canFall = true;
 				}
 			}
+			// else only check below the pill
 			else
 			{
 				if (!vPillDot[i]->m_still &&
@@ -346,16 +351,22 @@ void PlaceViruses(int amount)
 // Main Game functions
 void GameInit(HWND* phWnd)
 {
-	game_state = GAME_PLAY_INIT;
+	game_state = GAME_MENU;
 	graphics->Init(phWnd);
 	// create bitmaps
 	graphics->CreateBitmap(L"textures/test/checkers.png", &pBmp_bg);
 	graphics->CreateBitmap(L"textures/test/grid_square.png", &pBmp_grid);
 	graphics->CreateBitmap(L"textures/test/bottle.png", &pBmp_bottle);
 	graphics->CreateBitmap(L"textures/test/bottle_won.png", &pBmp_bottleWon);
+	graphics->CreateBitmap(L"textures/test/bottle_lose.png", &pBmp_bottleLost);
 	graphics->CreateBitmap(L"textures/test/pills.png", &pBmp_gridItem);
 	graphics->CreateBitmap(L"textures/test/pause.png", &pBmp_pause);
 	graphics->CreateBitmap(L"textures/test/pause_circle.png", &pBmp_pauseCircle);
+	graphics->CreateBitmap(L"textures/test/menu.png", &pBmp_menu);
+	graphics->CreateBitmap(L"textures/test/arrow_virus.png", &pBmp_arrowVirus);
+	graphics->CreateBitmap(L"textures/test/arrow_speed.png", &pBmp_arrowSpeed);
+	graphics->CreateBitmap(L"textures/test/stat_card.png", &pBmp_statCard);
+	graphics->CreateBitmap(L"textures/test/numbers.png", &pBmp_numbers);
 	// calculate grid
 	for (size_t i = 0; i < 104; i++)
 	{
@@ -371,24 +382,52 @@ void GameInit(HWND* phWnd)
 			bottom
 		);
 	}
-	time_ms = 0;
-	timeElapsed_ms = 0;
-
-
+	time_s = 0;
 
 	pauseOption = 0;
+
+	menuOption = 0;
+	menuVirus = 0;
+	menuSpeed = 0;
+
+	virusCount = 0;
 }
 
 void GameUpdate(float deltaTime)
 {
+	time_s += deltaTime;
+
 	switch (game_state)
 	{
 	case GAME_PLAY_INIT:
 	{
 		vPillDot.clear();
 
-		srand((int)(deltaTime * 1000.f));
-		PlaceViruses(1); // 80 at most
+		srand((int)(time_s * 100.f));
+
+		if (menuVirus * 4 + 4 <= 80)
+		{
+			virusCount = menuVirus * 4 + 4;
+		}
+		else
+		{
+			virusCount = 80;
+		}
+		PlaceViruses(virusCount);
+
+		switch (menuSpeed)
+		{
+		case 0:
+			timing_pillDrop = 0.6667f;
+			break;
+		case 1:
+			timing_pillDrop = 0.4167f;
+			break;
+		case 2:
+			timing_pillDrop = 0.2834;
+			break;
+		}
+
 		game_state = GAME_PLAY;
 		play_state = PLAY_SERVE;
 		break;
@@ -401,21 +440,22 @@ void GameUpdate(float deltaTime)
 				game_state = GAME_PAUSE;
 			}
 		// logic
-		timeElapsed_ms += deltaTime;
-		time_ms += deltaTime;
-		if (play_state == PLAY_SERVE && time_ms > 1.f)
+		if (play_state == PLAY_SERVE)
 			{
-				time_ms = 0;
-				Serve();
-				play_state = PLAY_AIM;
+				if (time_s > timing_pillServe)
+				{
+					Serve() ? play_state = PLAY_AIM : game_state = GAME_LOSE;
+				}
 			}
 		if (play_state == PLAY_AIM)
 			{
-				oPillPlayer->HandleInput(vPillDot, timeElapsed_ms);
-				if (time_ms > 1.f)
+				oPillPlayer->HandleInput(vPillDot);
+				float dropSpeed = input->ButtonHeld(BUTTON_S) ? timing_pillDropM : timing_pillDrop;
+
+				if (time_s > dropSpeed)
 				{
-					time_ms = 0;
-					if (!Aim())
+					time_s = 0;
+					if (!Drop())
 					{
 						Land();
 						play_state = PLAY_CHECK;
@@ -423,40 +463,64 @@ void GameUpdate(float deltaTime)
 				}
 
 			}
-		if (play_state == PLAY_CHECK && time_ms > 0.5f)
+		if (play_state == PLAY_CHECK)
 			{
-				time_ms = 0;
-				if (matches.empty())
+			if (matches.empty())
+			{
+				if (CanFall())
 				{
-					if (CanFall())
+					if (time_s > timing_pillFall)
 					{
+						time_s = 0;
 						Fall();
-					}
-					else if (!CheckForMatches())
-					{
-						play_state = PLAY_SERVE;
+						// render pills that just fell
 					}
 				}
-				else
+				else if (!CheckForMatches())
 				{
-					DestroyMatches();
-				}
-				if (CheckVirusAmount() == 0)
-				{
-					game_state = GAME_WIN;
+					play_state = PLAY_SERVE;
+					// render matches
 				}
 			}
+			else if (!matches.empty() && time_s > timing_pillMatch)
+			{
+				DestroyMatches();
+				virusCount = CheckVirusAmount();
+				if (virusCount <= 0)
+				{
+					game_state = GAME_WIN;
+					// render destroyed pills
+				}
+			}
+			}
+		break;
 	}
 	case GAME_WIN:
 	{
 		if (input->ButtonPressed(BUTTON_ENTER))
 		{
 			game_state = GAME_PLAY_INIT;
+			menuVirus++;
+		}
+		break;
+	}
+	case GAME_LOSE:
+	{
+		if (input->ButtonPressed(BUTTON_ENTER))
+		{
+			game_state = GAME_MENU;
 		}
 		break;
 	}
 	case GAME_PAUSE:
 	{
+		// un-pause
+		if (input->ButtonPressed(BUTTON_SPACE))
+		{
+			game_state = GAME_PLAY;
+			break;
+		}
+
 		// change selection
 		if (pauseOption == 0 && input->ButtonPressed(BUTTON_D)) // select exit
 			{
@@ -474,14 +538,57 @@ void GameUpdate(float deltaTime)
 			}
 		else if (pauseOption == 1 && input->ButtonPressed(BUTTON_ENTER)) // activate exit
 			{
-				PostQuitMessage(0);
+				game_state = GAME_MENU;
+				//PostQuitMessage(0);
 			}
 
-		// un-pause
-		if (input->ButtonPressed(BUTTON_SPACE))
+		break;
+	}
+	case GAME_MENU:
+	{
+		// play
+		if (input->ButtonPressed(BUTTON_ENTER))
+		{
+			game_state = GAME_PLAY_INIT;
+			break;
+		}
+
+		// change option
+		if (input->ButtonPressed(BUTTON_S) && menuOption == 0) // if pressed down while "viruses" is highlighted.
+		{
+			menuOption = 1; // "speed" now selected.
+		}
+		else if (input->ButtonPressed(BUTTON_W) && menuOption == 1) // if pressed up while "speed" is selected.
+		{
+			menuOption = 0; // "viruses" now selected.
+		}
+
+		// lessen value
+		if (input->ButtonPressed(BUTTON_A))
+		{
+			if (menuOption == 0 && menuVirus > 0)
 			{
-				game_state = GAME_PLAY;
+				menuVirus--;
 			}
+			else if (menuOption == 1 && menuSpeed > 0)
+			{
+				menuSpeed--;
+			}
+		}
+		// increase value
+		else if (input->ButtonPressed(BUTTON_D))
+		{
+			if (menuOption == 0 && menuVirus < 9)
+			{
+				menuVirus++;
+			}
+			else if (menuOption == 1 && menuSpeed < 2)
+			{
+				menuSpeed++;
+			}
+		}
+
+		break;
 	}
 	}
 
@@ -496,7 +603,39 @@ void GameRender(HWND* pHwnd)
 	case GAME_PLAY:
 	{
 		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+		graphics->DrawBitmap(&pBmp_statCard, D2D1::RectF(168.f, 88.f, 236.f, 160.f));
 		graphics->DrawBitmap(&pBmp_bottle, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
+
+		// level count
+		int a;
+		int b;
+		if (menuVirus >= 10)
+		{
+			a = menuVirus / 10;
+			b = menuVirus - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = menuVirus;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 96.f, 218.f, 103.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // level digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 96.f, 225.f, 103.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // level digit 2
+
+		// virus count
+		if (virusCount >= 10)
+		{
+			a = virusCount / 10;
+			b = virusCount - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = virusCount;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 115.f, 218.f, 122.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // virus count digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 115.f, 225.f, 122.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // virus count digit 2
+
 		// grid debug
 		for (size_t i = 0; i < 104; i++)
 		{
@@ -543,11 +682,15 @@ void GameRender(HWND* pHwnd)
 	case GAME_WIN:
 	{
 		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+		graphics->DrawBitmap(&pBmp_statCard, D2D1::RectF(168.f, 88.f, 236.f, 160.f));
 		graphics->DrawBitmap(&pBmp_bottleWon, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
 		break;
 	}
 	case GAME_LOSE:
 	{
+		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+		graphics->DrawBitmap(&pBmp_statCard, D2D1::RectF(168.f, 88.f, 236.f, 160.f));
+		graphics->DrawBitmap(&pBmp_bottleLost, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
 		break;
 	}
 	case GAME_PAUSE:
@@ -561,6 +704,14 @@ void GameRender(HWND* pHwnd)
 		{
 			graphics->DrawBitmap(&pBmp_pauseCircle, D2D1::RectF(118.f, 76.f, 118.f + 69.f, 76.f + 39.f));
 		}
+		break;
+	}
+	case GAME_MENU:
+	{
+		graphics->DrawBitmap(&pBmp_menu, D2D1::RectF(0, 0, 240.f, 160.f)); // background
+		graphics->DrawBitmap(&pBmp_pauseCircle, D2D1::RectF(82.f, 2.f + 70.f * menuOption, 151.f, 40.f + 70.f * menuOption)); // circle
+		graphics->DrawBitmap(&pBmp_arrowVirus, D2D1::RectF(68.f + 10.f * menuVirus, 45.f, 77.f + 10 * menuVirus, 55.f)); // virus arrow
+		graphics->DrawBitmap(&pBmp_arrowVirus, D2D1::RectF(46.f + 60.f * menuSpeed, 116.f, 76.f + 60 * menuSpeed, 124.f)); // speed arrow
 		break;
 	}
 	}

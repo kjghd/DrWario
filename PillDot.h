@@ -14,6 +14,7 @@ public:
 
 	bool CheckDownHit(std::vector <PillDot*> vRange);
 	bool CheckDownBounds();
+	bool CheckRightBounds();
 
 	void MoveDown();
 

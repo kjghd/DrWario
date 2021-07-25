@@ -94,6 +94,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 				input->SetButtonDown(msg.wParam, 0x46, BUTTON_F);
 				input->SetButtonDown(msg.wParam, 0x51, BUTTON_Q);
 				input->SetButtonDown(msg.wParam, 0x53, BUTTON_S);
+				input->SetButtonDown(msg.wParam, 0x57, BUTTON_W);
 				input->SetButtonDown(msg.wParam, VK_SPACE, BUTTON_SPACE);
 				input->SetButtonDown(msg.wParam, VK_RETURN, BUTTON_ENTER);
 				break;
@@ -106,6 +107,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 				input->SetButtonUp(msg.wParam, 0x46, BUTTON_F);
 				input->SetButtonUp(msg.wParam, 0x51, BUTTON_Q);
 				input->SetButtonUp(msg.wParam, 0x53, BUTTON_S);
+				input->SetButtonUp(msg.wParam, 0x57, BUTTON_W);
 				input->SetButtonUp(msg.wParam, VK_SPACE, BUTTON_SPACE);
 				input->SetButtonUp(msg.wParam, VK_RETURN, BUTTON_ENTER);
 				break;

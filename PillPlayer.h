@@ -18,7 +18,7 @@ public:
 	PillDot* m_pillDotB;
 	int m_baseLocation;
 	int m_rotation;
-	float m_timeWentDown;
+	bool m_holdingDown;
 
 private:
 	// collision detection
@@ -41,7 +41,7 @@ private:
 	void SetToRight();
 	
 public:
-	void HandleInput(std::vector <PillDot*> vRange, float currentTime)
+	void HandleInput(std::vector <PillDot*> vRange)
 	{
 		// clockwise
 		if (input->ButtonPressed(BUTTON_E))
@@ -152,16 +152,6 @@ public:
 		if (input->ButtonPressed(BUTTON_D) && !CheckRightBounds() && !CheckRightHit(vRange))
 		{
 			MoveRight();
-		}
-		// move down
-		if (input->ButtonPressed(BUTTON_S) && !CheckDownBounds() && !CheckDownHit(vRange))
-		{
-			MoveDown();
-			m_timeWentDown = currentTime;
-		}
-		else if (input->ButtonHeld(BUTTON_S) && !CheckDownBounds() && !CheckDownHit(vRange) && (currentTime - m_timeWentDown) > .5f)
-		{
-			MoveDown();
 		}
 	}
 	bool IncrementY(std::vector <PillDot*> vRange);

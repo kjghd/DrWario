@@ -166,6 +166,7 @@
     <ClInclude Include="PillDot.h" />
     <ClInclude Include="PillPlayer.h" />
     <ClInclude Include="SafeRelease.h" />
+    <ClInclude Include="TimingValues.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

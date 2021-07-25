@@ -54,6 +54,17 @@ bool PillDot::CheckDownBounds()
 		return false;
 	}
 }
+bool PillDot::CheckRightBounds()
+{
+	for (size_t i = 0; i < 13; i++)
+	{
+		if (m_bmpLoc == i * 8 + 7)
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 // movement
 void PillDot::MoveDown()
