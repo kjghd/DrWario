@@ -16,6 +16,9 @@ enum Button
 	BUTTON_Q,
 	BUTTON_S,
 
+	BUTTON_SPACE,
+	BUTTON_ENTER,
+
 	BUTTON_COUNT
 };
 

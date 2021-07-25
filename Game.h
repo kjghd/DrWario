@@ -7,6 +7,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <stdlib.h>
 
 enum PillColor
 {
@@ -15,22 +16,38 @@ enum PillColor
 	PILL_COLOR_RED,
 	PILL_COLOR_YEL
 };
+enum PlayState
+{
+	PLAY_SERVE,
+	PLAY_AIM,
+	PLAY_CHECK
+};
 enum GameState
 {
-	GAME_SERVE,
-	GAME_AIM,
-	GAME_CHECK
+	GAME_PLAY_INIT,
+	GAME_PLAY,
+	GAME_WIN,
+	GAME_LOSE,
+	GAME_PAUSE,
+	GAME_MENU
 };
+//
+int pauseOption;
 
 // game objects and variables
+int game_state;
 std::vector <PillDot*> vPillDot;
 PillPlayer* oPillPlayer;
 ID2D1Bitmap* pBmp_bg;
 ID2D1Bitmap* pBmp_bottle;
+ID2D1Bitmap* pBmp_bottleWon;
 ID2D1Bitmap* pBmp_grid;
 ID2D1Bitmap* pBmp_gridItem;
+ID2D1Bitmap* pBmp_pause;
+ID2D1Bitmap* pBmp_pauseCircle;
 float time_ms;
-int gs;
+float timeElapsed_ms;
+int play_state;
 D2D1_RECT_F grid[104];
 
 std::vector<int> vToFall;
@@ -44,13 +61,12 @@ bool SortMatches(int i, int j)
 	return i > j;
 }
 
-
-
-
 // Game functions
+
+
 void Serve()
 {
-	oPillPlayer = new PillPlayer(pBmp_gridItem, PILL_COLOR_BLU, PILL_COLOR_RED);
+	oPillPlayer = new PillPlayer(pBmp_gridItem, rand() % 3 + 1, rand() % 3 + 1);
 
 	OutputDebugString(L"Serving\n");
 }
@@ -86,6 +102,7 @@ bool CheckForMatches()
 	std::sort(vPillDot.begin(), vPillDot.end(), SortPillDots);
 
 	// debug total pill dots
+	/*
 	OutputDebugString(L"Order:\n");
 	for (size_t i = 0; i < vPillDot.size(); i++)
 	{
@@ -93,58 +110,79 @@ bool CheckForMatches()
 		OutputDebugString(L", ");
 	}
 	OutputDebugString(L"\n");
+	*/
 
 	// check
 	int current;
 	int count;
+	bool onEdge;
 	matches.clear();
 	for (size_t i = 0; i < vPillDot.size(); i++)
 	{
-		// X
-		matches.push_back(i);
-		current = i;
-		count = 1;
-		for (size_t ii = 0; ii < vPillDot.size(); ii++)
+		onEdge = false;
+		for (size_t ii = 0; ii < 13; ii++)
 		{
-			if (i != ii &&
-				vPillDot[current]->m_bmpLoc + 1 == vPillDot[ii]->m_bmpLoc &&
-				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
+			if (vPillDot[i]->m_bmpLoc == ii * 8 + 7)
 			{
-				matches.push_back(ii); // store
-				current = ii; // retarget
-				ii = 0; // reset
-				count++;
+				onEdge = true;
 			}
 		}
-		if (count < 4)
+		if (!onEdge)
 		{
-			for (size_t i = 0; i < count; i++)
+			// X
+			matches.push_back(i);
+			current = i;
+			count = 1;
+			for (size_t ii = 0; ii < vPillDot.size(); ii++)
 			{
-				matches.pop_back();
+				if (i != ii &&
+					vPillDot[current]->m_bmpLoc + 1 == vPillDot[ii]->m_bmpLoc &&
+					vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
+				{
+					matches.push_back(ii); // store
+					current = ii; // retarget
+					ii = 0; // reset
+					count++;
+				}
+			}
+			if (count < 4)
+			{
+				for (size_t i = 0; i < count; i++)
+				{
+					matches.pop_back();
+				}
 			}
 		}
 
-		// Y
-		matches.push_back(i);
-		current = i;
-		count = 1;
-		for (size_t ii = 0; ii < vPillDot.size(); ii++)
+		onEdge = false;
+		if (i >= 96)
 		{
-			if (i != ii &&
-				vPillDot[current]->m_bmpLoc + 8 == vPillDot[ii]->m_bmpLoc &&
-				vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
-			{
-				matches.push_back(ii); // store
-				current = ii; // retarget
-				ii = 0; // reset
-				count++;
-			}
+			onEdge = true;
 		}
-		if (count < 4)
+		if (!onEdge)
 		{
-			for (size_t i = 0; i < count; i++)
+			// Y
+			matches.push_back(i);
+			current = i;
+			count = 1;
+			for (size_t ii = 0; ii < vPillDot.size(); ii++)
 			{
-				matches.pop_back();
+				if (i != ii &&
+					vPillDot[current]->m_bmpLoc + 8 == vPillDot[ii]->m_bmpLoc &&
+					vPillDot[current]->m_color == vPillDot[ii]->m_color) // check to right
+				{
+					matches.push_back(ii); // store
+					current = ii; // retarget
+					ii = 0; // reset
+					count++;
+				}
+			}
+			if (count < 4)
+			{
+				for (size_t i = 0; i < count; i++)
+				{
+					matches.pop_back();
+				}
 			}
 		}
 	}
@@ -163,9 +201,11 @@ bool CheckForMatches()
 		}
 	}
 
-	std::sort(matches.begin(), matches.end(), SortMatches); // sort matches big to small for destroying list without reshuffling idexes
+	// sort matches big to small for destroying list without reshuffling idexes
+	std::sort(matches.begin(), matches.end(), SortMatches);
 
 	// debug matches
+	/*
 	OutputDebugString(L"Matches:\n");
 	for (size_t i = 0; i < matches.size(); i++)
 	{
@@ -173,6 +213,7 @@ bool CheckForMatches()
 		OutputDebugString(L", ");
 	}
 	OutputDebugString(L"\n");
+	*/
 
 	// set match image
 	for (size_t i = 0; i < matches.size(); i++)
@@ -204,7 +245,18 @@ void DestroyMatches()
 	}
 	matches.clear();
 }
-
+int CheckVirusAmount()
+{
+	int amount{ 0 };
+	for (size_t i = 0; i < vPillDot.size(); i++)
+	{
+		if (vPillDot[i]->m_still == true)
+		{
+			amount++;
+		}
+	}
+	return amount;
+}
 bool CanFall()
 {
 	vToFall.clear();
@@ -215,7 +267,8 @@ bool CanFall()
 		{
 			if (vPillDot[i]->m_friend)
 			{
-				if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot) &&
+				if (!vPillDot[i]->m_still &&
+					!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot) &&
 					!vPillDot[i]->m_friend->CheckDownBounds() && !vPillDot[i]->m_friend->CheckDownHit(vPillDot))
 				{
 					vToFall.push_back(i);
@@ -224,7 +277,8 @@ bool CanFall()
 			}
 			else
 			{
-				if (!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot))
+				if (!vPillDot[i]->m_still &&
+					!vPillDot[i]->CheckDownBounds() && !vPillDot[i]->CheckDownHit(vPillDot))
 				{
 					vToFall.push_back(i);
 					canFall = true;
@@ -244,16 +298,64 @@ void Fall()
 		}
 	}
 }
+void PlaceViruses(int amount)
+{
+
+	// assign location
+	std::vector<int> takenSquares;
+	while (takenSquares.size() != amount)
+	{
+		bool canAdd = true;
+		int x = rand() % 80 + 24;
+		for (size_t i = 0; i < takenSquares.size(); i++)
+		{
+			if (x == takenSquares[i])
+			{
+				canAdd = false;
+			}
+		}
+		if (canAdd)
+		{
+			takenSquares.push_back(x);
+		}
+	}
+
+	bool goodPlacement{ false };
+	while (!goodPlacement)
+	{
+		// assign colour & fill array
+		for (size_t i = 0; i < amount; i++)
+		{
+			vPillDot.push_back(new PillDot(pBmp_gridItem, 42.f, takenSquares[i], rand() % 3 + 1, true));
+		}
+
+		// determine if good placment
+		if (CheckForMatches())
+		{
+			vPillDot.clear();
+			goodPlacement = false;
+		}
+		else
+		{
+			goodPlacement = true;
+		}
+	}
+
+}
 
 // Main Game functions
 void GameInit(HWND* phWnd)
 {
+	game_state = GAME_PLAY_INIT;
 	graphics->Init(phWnd);
 	// create bitmaps
 	graphics->CreateBitmap(L"textures/test/checkers.png", &pBmp_bg);
 	graphics->CreateBitmap(L"textures/test/grid_square.png", &pBmp_grid);
 	graphics->CreateBitmap(L"textures/test/bottle.png", &pBmp_bottle);
+	graphics->CreateBitmap(L"textures/test/bottle_won.png", &pBmp_bottleWon);
 	graphics->CreateBitmap(L"textures/test/pills.png", &pBmp_gridItem);
+	graphics->CreateBitmap(L"textures/test/pause.png", &pBmp_pause);
+	graphics->CreateBitmap(L"textures/test/pause_circle.png", &pBmp_pauseCircle);
 	// calculate grid
 	for (size_t i = 0; i < 104; i++)
 	{
@@ -270,105 +372,199 @@ void GameInit(HWND* phWnd)
 		);
 	}
 	time_ms = 0;
-	gs = GAME_SERVE;
+	timeElapsed_ms = 0;
+
+
+
+	pauseOption = 0;
 }
 
 void GameUpdate(float deltaTime)
 {
-	time_ms += deltaTime;
-	//OutputDebugString(std::to_wstring(time_ms).c_str());
-	//OutputDebugString(L"\n");
+	switch (game_state)
+	{
+	case GAME_PLAY_INIT:
+	{
+		vPillDot.clear();
 
-	if (gs == GAME_SERVE && time_ms > 1.f)
-	{
-		time_ms = 0;
-		Serve();
-		gs = GAME_AIM;
+		srand((int)(deltaTime * 1000.f));
+		PlaceViruses(1); // 80 at most
+		game_state = GAME_PLAY;
+		play_state = PLAY_SERVE;
+		break;
 	}
-	if (gs == GAME_AIM)
+	case GAME_PLAY:
 	{
-		oPillPlayer->HandleInput(vPillDot);
-		if (time_ms > 1.f)
-		{
-			time_ms = 0;
-			if (!Aim())
+		// pause
+		if (input->ButtonPressed(BUTTON_SPACE))
 			{
-				Land();
-				gs = GAME_CHECK;
+				game_state = GAME_PAUSE;
 			}
-		}
+		// logic
+		timeElapsed_ms += deltaTime;
+		time_ms += deltaTime;
+		if (play_state == PLAY_SERVE && time_ms > 1.f)
+			{
+				time_ms = 0;
+				Serve();
+				play_state = PLAY_AIM;
+			}
+		if (play_state == PLAY_AIM)
+			{
+				oPillPlayer->HandleInput(vPillDot, timeElapsed_ms);
+				if (time_ms > 1.f)
+				{
+					time_ms = 0;
+					if (!Aim())
+					{
+						Land();
+						play_state = PLAY_CHECK;
+					}
+				}
 
+			}
+		if (play_state == PLAY_CHECK && time_ms > 0.5f)
+			{
+				time_ms = 0;
+				if (matches.empty())
+				{
+					if (CanFall())
+					{
+						Fall();
+					}
+					else if (!CheckForMatches())
+					{
+						play_state = PLAY_SERVE;
+					}
+				}
+				else
+				{
+					DestroyMatches();
+				}
+				if (CheckVirusAmount() == 0)
+				{
+					game_state = GAME_WIN;
+				}
+			}
 	}
-	if (gs == GAME_CHECK && time_ms > 0.5f)
+	case GAME_WIN:
 	{
-		time_ms = 0;
-		if (matches.empty())
+		if (input->ButtonPressed(BUTTON_ENTER))
 		{
-			if (CanFall())
-			{
-				Fall();
-			}
-			else if (!CheckForMatches())
-			{
-				gs = GAME_SERVE;
-			}
+			game_state = GAME_PLAY_INIT;
 		}
-		else
-		{
-			DestroyMatches();
-		}
+		break;
 	}
+	case GAME_PAUSE:
+	{
+		// change selection
+		if (pauseOption == 0 && input->ButtonPressed(BUTTON_D)) // select exit
+			{
+				pauseOption = 1;
+			}
+		else if (pauseOption == 1 && input->ButtonPressed(BUTTON_A)) // select continue
+			{
+				pauseOption = 0;
+			}
+
+		// activate selection
+		if (pauseOption == 0 && input->ButtonPressed(BUTTON_ENTER)) // activate continue
+			{
+				game_state = GAME_PLAY;
+			}
+		else if (pauseOption == 1 && input->ButtonPressed(BUTTON_ENTER)) // activate exit
+			{
+				PostQuitMessage(0);
+			}
+
+		// un-pause
+		if (input->ButtonPressed(BUTTON_SPACE))
+			{
+				game_state = GAME_PLAY;
+			}
+	}
+	}
+
 }
 
 void GameRender(HWND* pHwnd)
 {
 	graphics->BeginDraw();
 	graphics->ClearScreen();
-
-	graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
-	graphics->DrawBitmap(&pBmp_bottle, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
-
-	// grid debug
-	for (size_t i = 0; i < 104; i++)
+	switch (game_state)
 	{
-		if (true)
+	case GAME_PLAY:
+	{
+		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+		graphics->DrawBitmap(&pBmp_bottle, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
+		// grid debug
+		for (size_t i = 0; i < 104; i++)
 		{
-			graphics->DrawBitmap(&pBmp_grid, grid[i]);
+			if (true)
+			{
+				graphics->DrawBitmap(&pBmp_grid, grid[i]);
+			}
 		}
-	}
-	// PillDots
-	if (!vPillDot.empty())
-	{
-		for (size_t i = 0; i < vPillDot.size(); i++)
+		// PillDots
+		if (!vPillDot.empty())
 		{
-			D2D1_RECT_F rcf = {
-				grid[vPillDot[i]->m_bmpLoc].left        ,
-				grid[vPillDot[i]->m_bmpLoc].top         ,
-				grid[vPillDot[i]->m_bmpLoc].right - 1.f,
-				grid[vPillDot[i]->m_bmpLoc].bottom - 1.f
+			for (size_t i = 0; i < vPillDot.size(); i++)
+			{
+				D2D1_RECT_F rcf = {
+					grid[vPillDot[i]->m_bmpLoc].left        ,
+					grid[vPillDot[i]->m_bmpLoc].top         ,
+					grid[vPillDot[i]->m_bmpLoc].right - 1.f,
+					grid[vPillDot[i]->m_bmpLoc].bottom - 1.f
+				};
+				graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
+				graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
+			}
+		}
+		// PillPlayer
+		if (oPillPlayer)
+		{
+			D2D1_RECT_F rcfA = {
+				grid[oPillPlayer->m_pillDotA->m_bmpLoc].left       ,
+				grid[oPillPlayer->m_pillDotA->m_bmpLoc].top + 1.f,
+				grid[oPillPlayer->m_pillDotA->m_bmpLoc].right - 1.f,
+				grid[oPillPlayer->m_pillDotA->m_bmpLoc].bottom
 			};
-			graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
-			graphics->DrawBitmapTile(&pBmp_gridItem, rcf, vPillDot[i]->m_bmpTile);
+			D2D1_RECT_F rcfB = {
+				grid[oPillPlayer->m_pillDotB->m_bmpLoc].left       ,
+				grid[oPillPlayer->m_pillDotB->m_bmpLoc].top + 1.f,
+				grid[oPillPlayer->m_pillDotB->m_bmpLoc].right - 1.f,
+				grid[oPillPlayer->m_pillDotB->m_bmpLoc].bottom
+			};
+			graphics->DrawBitmapTile(&oPillPlayer->m_pillDotA->m_pBitmap, rcfA, oPillPlayer->m_pillDotA->m_bmpTile);
+			graphics->DrawBitmapTile(&oPillPlayer->m_pillDotB->m_pBitmap, rcfB, oPillPlayer->m_pillDotB->m_bmpTile);
 		}
+		break;
 	}
-	// PillPlayer
-	if (oPillPlayer)
+	case GAME_WIN:
 	{
-		D2D1_RECT_F rcfA = {
-			grid[oPillPlayer->m_pillDotA->m_bmpLoc].left       ,
-			grid[oPillPlayer->m_pillDotA->m_bmpLoc].top   + 1.f,
-			grid[oPillPlayer->m_pillDotA->m_bmpLoc].right - 1.f,
-			grid[oPillPlayer->m_pillDotA->m_bmpLoc].bottom
-		};
-		D2D1_RECT_F rcfB = {
-			grid[oPillPlayer->m_pillDotB->m_bmpLoc].left       ,
-			grid[oPillPlayer->m_pillDotB->m_bmpLoc].top + 1.f,
-			grid[oPillPlayer->m_pillDotB->m_bmpLoc].right - 1.f,
-			grid[oPillPlayer->m_pillDotB->m_bmpLoc].bottom
-		};
-		graphics->DrawBitmapTile(&oPillPlayer->m_pillDotA->m_pBitmap, rcfA, oPillPlayer->m_pillDotA->m_bmpTile);
-		graphics->DrawBitmapTile(&oPillPlayer->m_pillDotB->m_pBitmap, rcfB, oPillPlayer->m_pillDotB->m_bmpTile);
+		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
+		graphics->DrawBitmap(&pBmp_bottleWon, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
+		break;
 	}
+	case GAME_LOSE:
+	{
+		break;
+	}
+	case GAME_PAUSE:
+	{
+		graphics->DrawBitmap(&pBmp_pause, D2D1::RectF(0, 0, 240.f, 160.f));
+		if (pauseOption == 0)
+		{
+			graphics->DrawBitmap(&pBmp_pauseCircle, D2D1::RectF(45.f, 76.f, 45.f + 69.f, 76.f + 39.f));
+		}
+		else if (pauseOption == 1)
+		{
+			graphics->DrawBitmap(&pBmp_pauseCircle, D2D1::RectF(118.f, 76.f, 118.f + 69.f, 76.f + 39.f));
+		}
+		break;
+	}
+	}
+
 
 	graphics->EndDraw();
 }

@@ -18,6 +18,7 @@ public:
 	PillDot* m_pillDotB;
 	int m_baseLocation;
 	int m_rotation;
+	float m_timeWentDown;
 
 private:
 	// collision detection
@@ -25,6 +26,7 @@ private:
 	bool CheckRightHit(std::vector <PillDot*> vRange);
 	bool CheckRightBaseHit(std::vector <PillDot*> vRange);
 	bool CheckDownHit(std::vector <PillDot*> vRange);
+	bool CheckUpBaseHit(std::vector<PillDot*> vRange);
 	bool CheckLeftBounds();
 	bool CheckRightBounds();
 	bool CheckDownBounds();
@@ -39,7 +41,7 @@ private:
 	void SetToRight();
 	
 public:
-	void HandleInput(std::vector <PillDot*> vRange)
+	void HandleInput(std::vector <PillDot*> vRange, float currentTime)
 	{
 		// clockwise
 		if (input->ButtonPressed(BUTTON_E))
@@ -47,7 +49,10 @@ public:
 			switch (m_rotation)
 			{
 			case PILL_ROT_L:
-				SetToUp();
+				if (!CheckUpBaseHit(vRange))
+				{
+					SetToUp();
+				}
 				break;
 
 			case PILL_ROT_U: // if up set to right
@@ -66,7 +71,10 @@ public:
 				break;
 
 			case PILL_ROT_R:
-				SetToDown();
+				if (!CheckUpBaseHit(vRange))
+				{
+					SetToDown();
+				}
 				break;
 
 			case PILL_ROT_D:
@@ -91,7 +99,10 @@ public:
 			switch (m_rotation)
 			{
 			case PILL_ROT_L:
-				SetToDown();
+				if (!CheckUpBaseHit(vRange))
+				{
+					SetToDown();
+				}
 				break;
 
 			case PILL_ROT_U:
@@ -110,7 +121,10 @@ public:
 				break;
 
 			case PILL_ROT_R:
-				SetToUp();
+				if (!CheckUpBaseHit(vRange))
+				{
+					SetToUp();
+				}
 				break;
 
 			case PILL_ROT_D:
@@ -140,7 +154,12 @@ public:
 			MoveRight();
 		}
 		// move down
-		if (input->ButtonHeld(BUTTON_S) && !CheckDownBounds() && !CheckDownHit(vRange))
+		if (input->ButtonPressed(BUTTON_S) && !CheckDownBounds() && !CheckDownHit(vRange))
+		{
+			MoveDown();
+			m_timeWentDown = currentTime;
+		}
+		else if (input->ButtonHeld(BUTTON_S) && !CheckDownBounds() && !CheckDownHit(vRange) && (currentTime - m_timeWentDown) > .5f)
 		{
 			MoveDown();
 		}
