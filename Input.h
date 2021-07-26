@@ -37,11 +37,11 @@ public:
 	void SetButtonUp(WPARAM wParam, int vk_code, int button);
 	bool ButtonPressed(int button);
 	bool ButtonHeld(int button);
-	float ButtonHeldTime(int button);
+	float ButtonHeldTime(int button, float deltaTime);
 
 	bool debugSetters;
 	bool debugInput;
-	void DebugMessage(bool condition, int button, LPCWSTR message);
+	void DebugMessage(bool condition, int button, LPCWSTR message, float timing = 0, LPCWSTR timingMessage = L"");
 };
 
 static Input* input = new Input();

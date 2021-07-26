@@ -18,7 +18,6 @@ public:
 	PillDot* m_pillDotB;
 	int m_baseLocation;
 	int m_rotation;
-	bool m_holdingDown;
 
 private:
 	// collision detection
