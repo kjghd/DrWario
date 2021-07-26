@@ -1,9 +1,11 @@
 #include "Input.h"
+#include <sstream>
 
 Input::Input()
 	:
-	debugSetters(false),
-	debugInput(false)
+	debugSetters(true),
+	debugInput(true),
+	m_timeHeld()
 {
 }
 Input::~Input()
@@ -57,19 +59,21 @@ bool Input::ButtonHeld(int button)
 	}
 }
 
-float Input::ButtonHeldTime(int button)
+float Input::ButtonHeldTime(int button, float deltaTime)
 {
 	if (m_button[button].down)
 	{
+		m_timeHeld[button] += deltaTime;
+
+		DebugMessage(debugInput, button, L"button held for ", m_timeHeld[button], L" s\n");
+
 		return m_timeHeld[button];
+
 	}
-	else
-	{
-		return false;
-	}
+	return 0;
 }
 
-void Input::DebugMessage(bool condition, int button, LPCWSTR message)
+void Input::DebugMessage(bool condition, int button, LPCWSTR message, float timing, LPCWSTR timingMessage)
 {
 	if (condition)
 	{
@@ -100,5 +104,11 @@ void Input::DebugMessage(bool condition, int button, LPCWSTR message)
 		}
 		OutputDebugString(btn_wstr);
 		OutputDebugString(message);
+		if (timing)
+		{
+			OutputDebugString(std::to_wstring(timing).c_str());
+			OutputDebugString(timingMessage);
+		}
+		
 	}
 }

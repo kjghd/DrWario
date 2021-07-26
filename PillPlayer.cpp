@@ -1,7 +1,5 @@
 #include "PillPlayer.h"
 
-
-
 PillPlayer::PillPlayer(ID2D1Bitmap* pBmp, int colorA, int colorB)
 	:
 	m_pillDotA(new PillDot(pBmp, 7.f, 3, colorA)),
@@ -186,8 +184,6 @@ void PillPlayer::SetToRight()
 	m_pillDotB->m_bmpTile.left = 14.f;
 	m_pillDotB->m_bmpTile.right = 21.f;
 }
-
-
 
 
 bool PillPlayer::IncrementY(std::vector <PillDot*> vRange)

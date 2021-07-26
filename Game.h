@@ -33,14 +33,12 @@ enum GameState
 	GAME_MENU
 };
 
-// 
+// game objects and variables
 int pauseOption;
 int menuOption;
 int menuVirus;
 int menuSpeed;
 int virusCount;
-
-// game objects and variables
 int game_state;
 std::vector <PillDot*> vPillDot;
 PillPlayer* oPillPlayer;
@@ -57,11 +55,9 @@ ID2D1Bitmap* pBmp_arrowVirus;
 ID2D1Bitmap* pBmp_arrowSpeed;
 ID2D1Bitmap* pBmp_statCard;
 ID2D1Bitmap* pBmp_numbers;
-
 float time_s;
 int play_state;
 D2D1_RECT_F grid[104];
-
 std::vector<int> vToFall;
 std::vector <int> matches; // matching pill indexes
 bool SortPillDots(PillDot* i, PillDot* j)
@@ -73,7 +69,7 @@ bool SortMatches(int i, int j)
 	return i > j;
 }
 
-// Game functions
+// GAME_PLAY functions
 bool Serve()
 {
 	// check nothing is in the way
@@ -88,7 +84,6 @@ bool Serve()
 
 	// drop a new pill
 	oPillPlayer = new PillPlayer(pBmp_gridItem, rand() % 3 + 1, rand() % 3 + 1);
-	OutputDebugString(L"Serving\n");
 	return true;
 }
 bool Drop()
@@ -114,24 +109,11 @@ void Land()
 
 	delete oPillPlayer;
 	oPillPlayer = nullptr;
-
-	OutputDebugString(L"Landed\n");
 }
 bool CheckForMatches()
 {
 	// sort pill dots
 	std::sort(vPillDot.begin(), vPillDot.end(), SortPillDots);
-
-	// debug total pill dots
-	/*
-	OutputDebugString(L"Order:\n");
-	for (size_t i = 0; i < vPillDot.size(); i++)
-	{
-		OutputDebugString(std::to_wstring(vPillDot[i]->m_bmpLoc).c_str());
-		OutputDebugString(L", ");
-	}
-	OutputDebugString(L"\n");
-	*/
 
 	// check for matches
 	int current;
@@ -206,17 +188,6 @@ bool CheckForMatches()
 
 	// sort matches big to small for erasing a member without reshuffling the others
 	std::sort(matches.begin(), matches.end(), SortMatches);
-
-	// debug matches
-	/*
-	OutputDebugString(L"Matches:\n");
-	for (size_t i = 0; i < matches.size(); i++)
-	{
-		OutputDebugString(std::to_wstring(matches[i]).c_str());
-		OutputDebugString(L", ");
-	}
-	OutputDebugString(L"\n");
-	*/
 
 	// set match image
 	for (size_t i = 0; i < matches.size(); i++)
@@ -305,26 +276,35 @@ void Fall()
 }
 void PlaceViruses(int amount)
 {
+	// determine how far down the grid to place viruses based on current level
+	int minSquare;
+	int maxSquare = 103;
+	if (menuVirus >= 19)
+	{
+		minSquare = 24; // 3 free rows
+	}
+	else
+	{
+		minSquare = (7 - menuVirus / 5) * 8; // viruses climb 1 row for every 5 levels
+	}
+	maxSquare -= minSquare;
 
 	// assign location
 	std::vector<int> takenSquares;
 	while (takenSquares.size() != amount)
 	{
+		int x = rand() % maxSquare + minSquare;
+
+		// if the generated location is already taken, it can't be added
 		bool canAdd = true;
-		int x = rand() % 80 + 24;
 		for (size_t i = 0; i < takenSquares.size(); i++)
 		{
-			if (x == takenSquares[i])
-			{
-				canAdd = false;
-			}
+			if (x == takenSquares[i]) { canAdd = false; }
 		}
-		if (canAdd)
-		{
-			takenSquares.push_back(x);
-		}
+		if (canAdd) { takenSquares.push_back(x); }
 	}
 
+	// create viruses. If a match is detected, re-colour them
 	bool goodPlacement{ false };
 	while (!goodPlacement)
 	{
@@ -392,7 +372,6 @@ void GameInit(HWND* phWnd)
 
 	virusCount = 0;
 }
-
 void GameUpdate(float deltaTime)
 {
 	time_s += deltaTime;
@@ -405,26 +384,44 @@ void GameUpdate(float deltaTime)
 
 		srand((int)(time_s * 100.f));
 
-		if (menuVirus * 4 + 4 <= 80)
+		// virus amount based on level
+		if (menuVirus >= 20) // >=20 (68)
 		{
-			virusCount = menuVirus * 4 + 4;
+			virusCount = 68;
 		}
-		else
+		else if (menuVirus == 19) // 19 (62)
 		{
-			virusCount = 80;
+			virusCount = 62;
+		}
+		else if (menuVirus >= 15) // 15 to 18 (+4)
+		{
+			virusCount = (menuVirus - 14) * 4 + 41;
+		}
+		else if (menuVirus >= 5) // 5 to 14 (+3)
+		{
+			virusCount = (menuVirus - 4) * 3 + 11;
+		}
+		else if (menuVirus >= 1) // 1 to 4 (+2)
+		{
+			virusCount = menuVirus * 2 + 3;
+		}
+		else if (menuVirus <= 0)
+		{
+			virusCount = 3;
 		}
 		PlaceViruses(virusCount);
 
+		// drop speed
 		switch (menuSpeed)
 		{
-		case 0:
-			timing_pillDrop = 0.6667f;
+		case 0: // low
+			timing_pillDrop = 0.6667f; // 40 frames @60fps
 			break;
-		case 1:
-			timing_pillDrop = 0.4167f;
+		case 1: // med
+			timing_pillDrop = 0.4167f; // 25 frames @60fps
 			break;
-		case 2:
-			timing_pillDrop = 0.2834;
+		case 2: // hi
+			timing_pillDrop = 0.2834; // 17 frames @60fps
 			break;
 		}
 
@@ -437,6 +434,7 @@ void GameUpdate(float deltaTime)
 		// pause
 		if (input->ButtonPressed(BUTTON_SPACE))
 			{
+				pauseOption = 0;
 				game_state = GAME_PAUSE;
 			}
 		// logic
@@ -508,6 +506,7 @@ void GameUpdate(float deltaTime)
 	{
 		if (input->ButtonPressed(BUTTON_ENTER))
 		{
+			menuOption = 0;
 			game_state = GAME_MENU;
 		}
 		break;
@@ -538,6 +537,7 @@ void GameUpdate(float deltaTime)
 			}
 		else if (pauseOption == 1 && input->ButtonPressed(BUTTON_ENTER)) // activate exit
 			{
+				menuOption = 0;
 				game_state = GAME_MENU;
 				//PostQuitMessage(0);
 			}
@@ -553,47 +553,53 @@ void GameUpdate(float deltaTime)
 			break;
 		}
 
-		// change option
-		if (input->ButtonPressed(BUTTON_S) && menuOption == 0) // if pressed down while "viruses" is highlighted.
+		// level
+		if (menuOption == 0)
 		{
-			menuOption = 1; // "speed" now selected.
-		}
-		else if (input->ButtonPressed(BUTTON_W) && menuOption == 1) // if pressed up while "speed" is selected.
-		{
-			menuOption = 0; // "viruses" now selected.
-		}
-
-		// lessen value
-		if (input->ButtonPressed(BUTTON_A))
-		{
-			if (menuOption == 0 && menuVirus > 0)
+			if (input->ButtonPressed(BUTTON_S))
+			{
+				menuOption = 1;
+			}
+			if (input->ButtonPressed(BUTTON_D) && menuVirus < 20)
+			{
+				menuVirus++;
+			}
+			else if (input->ButtonHeldTime(BUTTON_D, deltaTime) > timing_levelSelectStart && menuVirus < 20 && time_s >= timing_levelSelect)
+			{
+				time_s = 0;
+				menuVirus++;
+			}
+			if (input->ButtonPressed(BUTTON_A) && menuVirus > 0)
 			{
 				menuVirus--;
 			}
-			else if (menuOption == 1 && menuSpeed > 0)
+			else if (input->ButtonHeldTime(BUTTON_A, deltaTime) > timing_levelSelectStart && menuVirus > 0 && time_s >= timing_levelSelect)
+			{
+				time_s = 0;
+				menuVirus--;
+			}
+		}
+		// speed
+		else if (menuOption == 1)
+		{
+			if (input->ButtonPressed(BUTTON_W))
+			{
+				menuOption = 0;
+			}
+			if (input->ButtonPressed(BUTTON_D) && menuSpeed < 2)
+			{
+				menuSpeed++;
+			}
+			if (input->ButtonPressed(BUTTON_A) && menuSpeed > 0)
 			{
 				menuSpeed--;
 			}
 		}
-		// increase value
-		else if (input->ButtonPressed(BUTTON_D))
-		{
-			if (menuOption == 0 && menuVirus < 9)
-			{
-				menuVirus++;
-			}
-			else if (menuOption == 1 && menuSpeed < 2)
-			{
-				menuSpeed++;
-			}
-		}
-
 		break;
 	}
 	}
 
 }
-
 void GameRender(HWND* pHwnd)
 {
 	graphics->BeginDraw();
@@ -684,6 +690,37 @@ void GameRender(HWND* pHwnd)
 		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
 		graphics->DrawBitmap(&pBmp_statCard, D2D1::RectF(168.f, 88.f, 236.f, 160.f));
 		graphics->DrawBitmap(&pBmp_bottleWon, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
+
+		// level count
+		int a;
+		int b;
+		if (menuVirus >= 10)
+		{
+			a = menuVirus / 10;
+			b = menuVirus - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = menuVirus;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 96.f, 218.f, 103.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // level digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 96.f, 225.f, 103.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // level digit 2
+
+		// virus count
+		if (virusCount >= 10)
+		{
+			a = virusCount / 10;
+			b = virusCount - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = virusCount;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 115.f, 218.f, 122.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // virus count digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 115.f, 225.f, 122.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // virus count digit 2
+
 		break;
 	}
 	case GAME_LOSE:
@@ -691,6 +728,37 @@ void GameRender(HWND* pHwnd)
 		graphics->DrawBitmap(&pBmp_bg, D2D1::RectF(0, 0, 240.f, 160.f));
 		graphics->DrawBitmap(&pBmp_statCard, D2D1::RectF(168.f, 88.f, 236.f, 160.f));
 		graphics->DrawBitmap(&pBmp_bottleLost, D2D1::RectF(80.f, 8.f, 160.f, 160.f));
+
+		// level count
+		int a;
+		int b;
+		if (menuVirus >= 10)
+		{
+			a = menuVirus / 10;
+			b = menuVirus - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = menuVirus;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 96.f, 218.f, 103.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // level digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 96.f, 225.f, 103.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // level digit 2
+
+		// virus count
+		if (virusCount >= 10)
+		{
+			a = virusCount / 10;
+			b = virusCount - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = virusCount;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(213.f, 115.f, 218.f, 122.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // virus count digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(220.f, 115.f, 225.f, 122.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // virus count digit 2
+
 		break;
 	}
 	case GAME_PAUSE:
@@ -710,8 +778,24 @@ void GameRender(HWND* pHwnd)
 	{
 		graphics->DrawBitmap(&pBmp_menu, D2D1::RectF(0, 0, 240.f, 160.f)); // background
 		graphics->DrawBitmap(&pBmp_pauseCircle, D2D1::RectF(82.f, 2.f + 70.f * menuOption, 151.f, 40.f + 70.f * menuOption)); // circle
-		graphics->DrawBitmap(&pBmp_arrowVirus, D2D1::RectF(68.f + 10.f * menuVirus, 45.f, 77.f + 10 * menuVirus, 55.f)); // virus arrow
+		graphics->DrawBitmap(&pBmp_arrowVirus, D2D1::RectF(58.f + 5.f * menuVirus, 45.f, 67.f + 5 * menuVirus, 55.f)); // virus arrow
 		graphics->DrawBitmap(&pBmp_arrowVirus, D2D1::RectF(46.f + 60.f * menuSpeed, 116.f, 76.f + 60 * menuSpeed, 124.f)); // speed arrow
+
+		// level
+		int a;
+		int b;
+		if (menuVirus >= 10)
+		{
+			a = menuVirus / 10;
+			b = menuVirus - a * 10;
+		}
+		else
+		{
+			a = 0;
+			b = menuVirus;
+		}
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(169.f, 57.f, 174.f, 64.f), D2D1::RectF(5.f * a, 0, 5.f * (a + 1), 7.f)); // level digit 1
+		graphics->DrawBitmapTile(&pBmp_numbers, D2D1::RectF(176.f, 57.f, 181.f, 64.f), D2D1::RectF(5.f * b, 0, 5.f * (b + 1), 7.f)); // level digit 2
 		break;
 	}
 	}
@@ -719,7 +803,6 @@ void GameRender(HWND* pHwnd)
 
 	graphics->EndDraw();
 }
-
 void GameRelease()
 {
 	SafeRelease(&pBmp_grid);
